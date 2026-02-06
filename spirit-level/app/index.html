@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Spirit Level - 水平器</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" type="image/svg+xml" href="../favicon.svg">
+</head>
+<body data-theme="dark">
+  <div class="container">
+    <!-- Status bar -->
+    <div class="status-bar">
+      <span class="status-dot" id="statusDot"></span>
+      <span id="statusText">準備完了</span>
+    </div>
+
+    <!-- Angle display -->
+    <div class="angle-display">
+      <div class="angle-item">
+        <span class="angle-label" data-i18n="rollLabel">横方向</span>
+        <span class="angle-value" id="rollValue">0.0°</span>
+      </div>
+      <div class="angle-item">
+        <span class="angle-label" data-i18n="pitchLabel">縦方向</span>
+        <span class="angle-value" id="pitchValue">0.0°</span>
+      </div>
+    </div>
+
+    <!-- Spirit level (circle + bubble) -->
+    <div class="level-container">
+      <div class="level-circle">
+        <div class="center-cross"></div>
+        <div class="bubble" id="bubble"></div>
+      </div>
+    </div>
+
+    <!-- Level indicator -->
+    <div class="level-indicator not-level" id="levelIndicator">
+      <span data-i18n="notLevel">水平ではありません</span>
+    </div>
+
+    <!-- Calibrate button -->
+    <button class="btn btn-secondary" id="calibrateBtn">
+      <span data-i18n="calibrate">較正</span>
+    </button>
+
+    <!-- Settings buttons -->
+    <div class="settings">
+      <button class="btn-icon" id="themeToggle" title="テーマ切り替え">🌙</button>
+      <button class="btn-icon" id="langToggle" title="言語切り替え">🌐</button>
+    </div>
+  </div>
+
+  <script src="sensor.js"></script>
+  <script src="level.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
