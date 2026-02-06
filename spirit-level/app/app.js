@@ -17,7 +17,18 @@ const App = (function() {
       notLevel: '水平ではありません',
       calibrate: '較正',
       statusReady: '準備完了',
-      calibrateSuccess: '較正しました'
+      calibrateSuccess: '較正しました',
+      helpTitle: '使い方',
+      helpBubbleTitle: 'バブル（気泡）',
+      helpBubbleDesc: 'デバイスの傾きに応じて動きます。バブルが中心にあれば水平です。',
+      helpAngleTitle: '角度表示',
+      helpAngleDesc: '横方向（Roll）と縦方向（Pitch）の傾きを度数で表示します。',
+      helpCalibrateTitle: '較正',
+      helpCalibrateDesc: '現在の傾きを基準（0°）にリセットします。斜面での作業に便利です。',
+      helpThemeTitle: 'テーマ',
+      helpThemeDesc: '☀️/🌙 ボタンでダークモードとライトモードを切り替えます。',
+      helpLangTitle: '言語',
+      helpLangDesc: '🌐 ボタンで日本語と英語を切り替えます。'
     },
     en: {
       title: 'Spirit Level',
@@ -27,7 +38,18 @@ const App = (function() {
       notLevel: 'Not Level',
       calibrate: 'Calibrate',
       statusReady: 'Ready',
-      calibrateSuccess: 'Calibrated'
+      calibrateSuccess: 'Calibrated',
+      helpTitle: 'How to Use',
+      helpBubbleTitle: 'Bubble',
+      helpBubbleDesc: 'Moves according to the tilt of your device. The surface is level when the bubble is centered.',
+      helpAngleTitle: 'Angle Display',
+      helpAngleDesc: 'Shows the tilt in degrees for Roll (horizontal) and Pitch (vertical).',
+      helpCalibrateTitle: 'Calibrate',
+      helpCalibrateDesc: 'Resets the current tilt as the reference (0°). Useful when working on slopes.',
+      helpThemeTitle: 'Theme',
+      helpThemeDesc: 'Tap ☀️/🌙 to switch between dark and light mode.',
+      helpLangTitle: 'Language',
+      helpLangDesc: 'Tap 🌐 to switch between Japanese and English.'
     }
   };
 
@@ -57,6 +79,11 @@ const App = (function() {
     document.getElementById('calibrateBtn').addEventListener('click', onCalibrate);
     document.getElementById('themeToggle').addEventListener('click', toggleTheme);
     document.getElementById('langToggle').addEventListener('click', toggleLanguage);
+    document.getElementById('helpBtn').addEventListener('click', openHelp);
+    document.getElementById('helpClose').addEventListener('click', closeHelp);
+    document.getElementById('helpModal').addEventListener('click', function(e) {
+      if (e.target === this) closeHelp();
+    });
 
     // Page Visibility API (battery optimization)
     document.addEventListener('visibilitychange', function() {
@@ -193,6 +220,14 @@ const App = (function() {
     currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
     localStorage.setItem('spirit_level_theme', currentTheme);
     applyTheme();
+  }
+
+  function openHelp() {
+    document.getElementById('helpModal').classList.add('active');
+  }
+
+  function closeHelp() {
+    document.getElementById('helpModal').classList.remove('active');
   }
 
   function showToast(msg) {

@@ -47,8 +47,56 @@
 
     <!-- Settings buttons -->
     <div class="settings">
-      <button class="btn-icon" id="themeToggle" title="テーマ切り替え">🌙</button>
+      <button class="btn-icon" id="helpBtn" title="ヘルプ">❓</button>
+      <button class="btn-icon" id="themeToggle" title="テーマ切り替え">☀️</button>
       <button class="btn-icon" id="langToggle" title="言語切り替え">🌐</button>
+    </div>
+
+    <!-- Help modal -->
+    <div class="modal-overlay" id="helpModal">
+      <div class="modal">
+        <div class="modal-header">
+          <span class="modal-title" data-i18n="helpTitle">使い方</span>
+          <button class="modal-close" id="helpClose">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="manual-item">
+            <div class="manual-icon">&#x1F7E2;</div>
+            <div>
+              <div class="manual-heading" data-i18n="helpBubbleTitle">バブル（気泡）</div>
+              <div class="manual-desc" data-i18n="helpBubbleDesc">デバイスの傾きに応じて動きます。バブルが中心にあれば水平です。</div>
+            </div>
+          </div>
+          <div class="manual-item">
+            <div class="manual-icon">&#x1F4D0;</div>
+            <div>
+              <div class="manual-heading" data-i18n="helpAngleTitle">角度表示</div>
+              <div class="manual-desc" data-i18n="helpAngleDesc">横方向（Roll）と縦方向（Pitch）の傾きを度数で表示します。</div>
+            </div>
+          </div>
+          <div class="manual-item">
+            <div class="manual-icon">&#x1F3AF;</div>
+            <div>
+              <div class="manual-heading" data-i18n="helpCalibrateTitle">較正</div>
+              <div class="manual-desc" data-i18n="helpCalibrateDesc">現在の傾きを基準（0°）にリセットします。斜面での作業に便利です。</div>
+            </div>
+          </div>
+          <div class="manual-item">
+            <div class="manual-icon">&#x1F3A8;</div>
+            <div>
+              <div class="manual-heading" data-i18n="helpThemeTitle">テーマ</div>
+              <div class="manual-desc" data-i18n="helpThemeDesc">☀️/🌙 ボタンでダークモードとライトモードを切り替えます。</div>
+            </div>
+          </div>
+          <div class="manual-item">
+            <div class="manual-icon">&#x1F310;</div>
+            <div>
+              <div class="manual-heading" data-i18n="helpLangTitle">言語</div>
+              <div class="manual-desc" data-i18n="helpLangDesc">🌐 ボタンで日本語と英語を切り替えます。</div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 
