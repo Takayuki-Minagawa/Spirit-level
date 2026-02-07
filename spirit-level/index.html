@@ -364,7 +364,26 @@ h1 {
     runSensorCheck();
   });
 
-  // Auto-start sensor check if consent already given (e.g. browser back/history)
+  // Reset UI to initial state (for bfcache restoration)
+  function resetUI() {
+    diagnostics.style.display = 'none';
+    checkList.innerHTML = '';
+    resultBox.innerHTML = '';
+    goApp.style.display = 'none';
+    startCheck.disabled = !consentCheck.checked;
+  }
+
+  // Handle bfcache restoration (browser back/forward)
+  window.addEventListener('pageshow', function(e) {
+    if (e.persisted) {
+      resetUI();
+      if (consentCheck.checked) {
+        runSensorCheck();
+      }
+    }
+  });
+
+  // Auto-start sensor check if consent already given
   if (hasConsent) {
     runSensorCheck();
   }
