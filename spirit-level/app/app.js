@@ -16,8 +16,10 @@ const App = (function() {
       level: '水平です',
       notLevel: '水平ではありません',
       calibrate: 'ゼロリセット',
+      resetLevel: '水平に戻す',
       statusReady: '準備完了',
       calibrateSuccess: 'ゼロリセットしました',
+      resetSuccess: '水平に戻しました',
       helpTitle: '使い方',
       helpBubbleTitle: 'バブル（気泡）',
       helpBubbleDesc: 'デバイスの傾きに応じて動きます。バブルが中心にあれば水平です。',
@@ -25,6 +27,8 @@ const App = (function() {
       helpAngleDesc: '横方向（Roll）と縦方向（Pitch）の傾きを度数で表示します。',
       helpCalibrateTitle: 'ゼロリセット',
       helpCalibrateDesc: '現在の傾きを基準（0°）にリセットします。斜面での作業に便利です。',
+      helpResetTitle: '水平に戻す',
+      helpResetDesc: 'ゼロリセットを解除し、重力センサー基準の絶対水平に戻します。',
       helpThemeTitle: 'テーマ',
       helpThemeDesc: '☀️/🌙 ボタンでダークモードとライトモードを切り替えます。',
       helpLangTitle: '言語',
@@ -37,8 +41,10 @@ const App = (function() {
       level: 'Level',
       notLevel: 'Not Level',
       calibrate: 'Calibrate',
+      resetLevel: 'Reset to Level',
       statusReady: 'Ready',
       calibrateSuccess: 'Calibrated',
+      resetSuccess: 'Reset to absolute level',
       helpTitle: 'How to Use',
       helpBubbleTitle: 'Bubble',
       helpBubbleDesc: 'Moves according to the tilt of your device. The surface is level when the bubble is centered.',
@@ -46,6 +52,8 @@ const App = (function() {
       helpAngleDesc: 'Shows the tilt in degrees for Roll (horizontal) and Pitch (vertical).',
       helpCalibrateTitle: 'Calibrate',
       helpCalibrateDesc: 'Resets the current tilt as the reference (0°). Useful when working on slopes.',
+      helpResetTitle: 'Reset to Level',
+      helpResetDesc: 'Clears calibration and returns to absolute level based on gravity sensor.',
       helpThemeTitle: 'Theme',
       helpThemeDesc: 'Tap ☀️/🌙 to switch between dark and light mode.',
       helpLangTitle: 'Language',
@@ -77,6 +85,7 @@ const App = (function() {
 
     // Event listeners
     document.getElementById('calibrateBtn').addEventListener('click', onCalibrate);
+    document.getElementById('resetBtn').addEventListener('click', onResetLevel);
     document.getElementById('themeToggle').addEventListener('click', toggleTheme);
     document.getElementById('langToggle').addEventListener('click', toggleLanguage);
     document.getElementById('helpBtn').addEventListener('click', openHelp);
@@ -192,6 +201,11 @@ const App = (function() {
     const { gx, gy, gz } = latestGravity;
     Level.calibrate(gx, gy, gz);
     showToast(i18n[currentLang].calibrateSuccess);
+  }
+
+  function onResetLevel() {
+    Level.resetCalibration();
+    showToast(i18n[currentLang].resetSuccess);
   }
 
   function applyLanguage() {

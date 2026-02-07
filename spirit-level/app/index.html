@@ -40,10 +40,15 @@
       <span data-i18n="notLevel">水平ではありません</span>
     </div>
 
-    <!-- Calibrate button -->
-    <button class="btn btn-secondary" id="calibrateBtn">
-      <span data-i18n="calibrate">ゼロリセット</span>
-    </button>
+    <!-- Calibrate buttons -->
+    <div class="btn-row">
+      <button class="btn btn-secondary" id="calibrateBtn">
+        <span data-i18n="calibrate">ゼロリセット</span>
+      </button>
+      <button class="btn btn-secondary" id="resetBtn">
+        <span data-i18n="resetLevel">水平に戻す</span>
+      </button>
+    </div>
 
     <!-- Settings buttons -->
     <div class="settings">
@@ -79,6 +84,13 @@
             <div>
               <div class="manual-heading" data-i18n="helpCalibrateTitle">ゼロリセット</div>
               <div class="manual-desc" data-i18n="helpCalibrateDesc">現在の傾きを基準（0°）にリセットします。斜面での作業に便利です。</div>
+            </div>
+          </div>
+          <div class="manual-item">
+            <div class="manual-icon">&#x2696;</div>
+            <div>
+              <div class="manual-heading" data-i18n="helpResetTitle">水平に戻す</div>
+              <div class="manual-desc" data-i18n="helpResetDesc">ゼロリセットを解除し、重力センサー基準の絶対水平に戻します。</div>
             </div>
           </div>
           <div class="manual-item">

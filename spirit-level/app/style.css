@@ -201,6 +201,17 @@ body {
   border: 2px solid transparent;
 }
 
+/* Button row */
+.btn-row {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.btn-row .btn {
+  margin-bottom: 0;
+}
+
 /* Buttons */
 .btn {
   width: 100%;
