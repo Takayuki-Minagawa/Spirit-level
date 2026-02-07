@@ -229,7 +229,8 @@ h1 {
   const goApp = document.getElementById('goApp');
 
   // Restore consent from localStorage
-  if (localStorage.getItem('spirit_level_consent') === 'true') {
+  const hasConsent = localStorage.getItem('spirit_level_consent') === 'true';
+  if (hasConsent) {
     consentCheck.checked = true;
     startCheck.disabled = false;
   }
@@ -243,8 +244,8 @@ h1 {
     }
   });
 
-  startCheck.addEventListener('click', async function() {
-    this.disabled = true;
+  async function runSensorCheck() {
+    startCheck.disabled = true;
     diagnostics.style.display = 'block';
     checkList.innerHTML = '';
     resultBox.innerHTML = '';
@@ -357,7 +358,16 @@ h1 {
 
     goApp.style.display = 'block';
     startCheck.disabled = false;
+  }
+
+  startCheck.addEventListener('click', function() {
+    runSensorCheck();
   });
+
+  // Auto-start sensor check if consent already given (e.g. browser back/history)
+  if (hasConsent) {
+    runSensorCheck();
+  }
 
   function probeSensor(durationMs) {
     return new Promise(resolve => {
