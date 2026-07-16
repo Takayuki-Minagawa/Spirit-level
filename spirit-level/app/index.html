@@ -2,118 +2,145 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Spirit Level - 水平器</title>
   <link rel="stylesheet" href="style.css">
   <link rel="icon" type="image/svg+xml" href="../favicon.svg">
 </head>
 <body data-theme="dark">
-  <div class="container">
-    <!-- Status bar -->
-    <div class="status-bar">
-      <span class="status-dot" id="statusDot"></span>
-      <span id="statusText">準備完了</span>
+  <main class="container">
+    <div class="status-bar" role="status" aria-live="polite" aria-atomic="true">
+      <span class="status-dot waiting" id="statusDot" aria-hidden="true"></span>
+      <span id="statusText" data-i18n="statusWaiting">センサーを待っています</span>
     </div>
 
-    <!-- Angle display -->
-    <div class="angle-display">
+    <section class="recovery-card" id="sensorRecovery" role="alert" hidden>
+      <p data-i18n="sensorUnavailable">センサー診断情報がありません。</p>
+      <a class="recovery-link" href="../index.html" data-i18n="backToCheck">センサーチェックへ戻る</a>
+    </section>
+
+    <section class="angle-display" aria-label="角度表示" data-i18n-aria="angleDisplayLabel">
       <div class="angle-item">
         <span class="angle-label" data-i18n="rollLabel">横方向</span>
-        <span class="angle-value" id="rollValue">0.0°</span>
+        <output class="angle-value" id="rollValue">--.-°</output>
       </div>
       <div class="angle-item">
         <span class="angle-label" data-i18n="pitchLabel">縦方向</span>
-        <span class="angle-value" id="pitchValue">0.0°</span>
+        <output class="angle-value" id="pitchValue">--.-°</output>
       </div>
-    </div>
+    </section>
 
-    <!-- Spirit level (circle + bubble) -->
     <div class="level-container">
-      <div class="level-circle">
+      <div
+        class="level-circle"
+        id="levelVisual"
+        role="img"
+        aria-label="気泡式水平器"
+        data-i18n-aria="levelVisualLabel"
+      >
         <div class="center-cross"></div>
         <div class="bubble" id="bubble"></div>
       </div>
     </div>
 
-    <!-- Level indicator -->
-    <div class="level-indicator not-level" id="levelIndicator">
-      <span data-i18n="notLevel">水平ではありません</span>
+    <div class="level-indicator waiting" id="levelIndicator" role="status" aria-live="polite" aria-atomic="true">
+      <span data-i18n="waitingForMeasurement">計測待機中</span>
     </div>
 
-    <!-- Calibrate buttons -->
+    <div class="basis-status">
+      <span data-i18n="basisLabel">基準</span>:
+      <strong id="basisValue" data-i18n="basisAbsolute">絶対水平</strong>
+    </div>
+
+    <button class="btn btn-hold" id="holdBtn" type="button" aria-pressed="false" disabled>
+      <span data-i18n="hold">HOLD</span>
+    </button>
+
     <div class="btn-row">
-      <button class="btn btn-secondary" id="calibrateBtn">
+      <button class="btn btn-secondary" id="calibrateBtn" type="button" disabled>
         <span data-i18n="calibrate">ゼロリセット</span>
       </button>
-      <button class="btn btn-secondary" id="resetBtn">
+      <button class="btn btn-secondary" id="resetBtn" type="button" disabled>
         <span data-i18n="resetLevel">水平に戻す</span>
       </button>
     </div>
 
-    <!-- Settings buttons -->
-    <div class="settings">
-      <button class="btn-icon" id="helpBtn" title="ヘルプ">❓</button>
-      <button class="btn-icon" id="themeToggle" title="テーマ切り替え">☀️</button>
-      <button class="btn-icon" id="langToggle" title="言語切り替え">🌐</button>
+    <div class="settings" aria-label="設定" data-i18n-aria="settingsLabel">
+      <button class="btn-icon" id="helpBtn" type="button" aria-label="ヘルプ" data-i18n-aria="helpLabel" title="ヘルプ">
+        <span aria-hidden="true">❓</span>
+      </button>
+      <button class="btn-icon" id="themeToggle" type="button" aria-label="テーマ切り替え" data-i18n-aria="themeLabel" title="テーマ切り替え">
+        <span aria-hidden="true" id="themeIcon">☀️</span>
+      </button>
+      <button class="btn-icon" id="langToggle" type="button" aria-label="言語切り替え" data-i18n-aria="languageLabel" title="言語切り替え">
+        <span aria-hidden="true">🌐</span>
+      </button>
     </div>
 
-    <!-- Help modal -->
-    <div class="modal-overlay" id="helpModal">
-      <div class="modal">
+    <div class="modal-overlay" id="helpModal" hidden>
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="helpDialogTitle">
         <div class="modal-header">
-          <span class="modal-title" data-i18n="helpTitle">使い方</span>
-          <button class="modal-close" id="helpClose">&times;</button>
+          <span class="modal-title" id="helpDialogTitle" data-i18n="helpTitle">使い方</span>
+          <button class="modal-close" id="helpClose" type="button" aria-label="ヘルプを閉じる" data-i18n-aria="closeHelpLabel">&times;</button>
         </div>
         <div class="modal-body">
           <div class="manual-item">
-            <div class="manual-icon">&#x1F7E2;</div>
+            <div class="manual-icon" aria-hidden="true">🟢</div>
             <div>
               <div class="manual-heading" data-i18n="helpBubbleTitle">バブル（気泡）</div>
               <div class="manual-desc" data-i18n="helpBubbleDesc">デバイスの傾きに応じて動きます。バブルが中心にあれば水平です。</div>
             </div>
           </div>
           <div class="manual-item">
-            <div class="manual-icon">&#x1F4D0;</div>
+            <div class="manual-icon" aria-hidden="true">📐</div>
             <div>
               <div class="manual-heading" data-i18n="helpAngleTitle">角度表示</div>
-              <div class="manual-desc" data-i18n="helpAngleDesc">横方向（Roll）と縦方向（Pitch）の傾きを度数で表示します。</div>
+              <div class="manual-desc" data-i18n="helpAngleDesc">横方向と縦方向の傾きを度数で表示します。</div>
             </div>
           </div>
           <div class="manual-item">
-            <div class="manual-icon">&#x1F3AF;</div>
+            <div class="manual-icon" aria-hidden="true">⏸️</div>
+            <div>
+              <div class="manual-heading" data-i18n="helpHoldTitle">HOLD</div>
+              <div class="manual-desc" data-i18n="helpHoldDesc">表示中の角度と気泡を固定します。再開すると最新値に戻ります。</div>
+            </div>
+          </div>
+          <div class="manual-item">
+            <div class="manual-icon" aria-hidden="true">🎯</div>
             <div>
               <div class="manual-heading" data-i18n="helpCalibrateTitle">ゼロリセット</div>
-              <div class="manual-desc" data-i18n="helpCalibrateDesc">現在の傾きを基準（0°）にリセットします。斜面での作業に便利です。</div>
+              <div class="manual-desc" data-i18n="helpCalibrateDesc">現在の傾きを相対基準の0°に設定します。</div>
             </div>
           </div>
           <div class="manual-item">
-            <div class="manual-icon">&#x2696;</div>
+            <div class="manual-icon" aria-hidden="true">⚖️</div>
             <div>
               <div class="manual-heading" data-i18n="helpResetTitle">水平に戻す</div>
-              <div class="manual-desc" data-i18n="helpResetDesc">ゼロリセットを解除し、重力センサー基準の絶対水平に戻します。</div>
+              <div class="manual-desc" data-i18n="helpResetDesc">相対基準を解除し、重力センサー基準の絶対水平に戻します。</div>
             </div>
           </div>
           <div class="manual-item">
-            <div class="manual-icon">&#x1F3A8;</div>
+            <div class="manual-icon" aria-hidden="true">🎨</div>
             <div>
               <div class="manual-heading" data-i18n="helpThemeTitle">テーマ</div>
-              <div class="manual-desc" data-i18n="helpThemeDesc">☀️/🌙 ボタンでダークモードとライトモードを切り替えます。</div>
+              <div class="manual-desc" data-i18n="helpThemeDesc">ボタンでダークモードとライトモードを切り替えます。</div>
             </div>
           </div>
           <div class="manual-item">
-            <div class="manual-icon">&#x1F310;</div>
+            <div class="manual-icon" aria-hidden="true">🌐</div>
             <div>
               <div class="manual-heading" data-i18n="helpLangTitle">言語</div>
-              <div class="manual-desc" data-i18n="helpLangDesc">🌐 ボタンで日本語と英語を切り替えます。</div>
+              <div class="manual-desc" data-i18n="helpLangDesc">ボタンで日本語と英語を切り替えます。</div>
             </div>
           </div>
         </div>
       </div>
     </div>
-  </div>
+  </main>
 
   <script src="sensor.js"></script>
   <script src="level.js"></script>
+  <script src="measurement-state.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
