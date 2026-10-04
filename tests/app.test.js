@@ -599,3 +599,48 @@ test('audio feedback closes its context after ending and when the page is hidden
   assert.equal(app.audioContexts[1].closeCalls, 1);
   assert.equal(app.audioContexts[0].closeCalls, 1);
 });
+
+test('calibrate then HOLD before paint cannot freeze an obsolete absolute value', () => {
+  const app = createApp();
+  app.sample(-9.81, 0, 9.81);
+  app.render();
+  app.click('calibrateBtn');
+  app.click('holdBtn');
+  app.render();
+  assert.equal(app.element('basisValue').getAttribute('data-i18n'), 'basisRelative');
+  assert.equal(app.element('rollValue').textContent, '0.0°');
+  assert.equal(app.element('levelIndicator').querySelector('span').getAttribute('data-i18n'), 'level');
+  assert.equal(app.status(), 'statusHeld');
+});
+
+test('reset then HOLD before paint cannot freeze an obsolete calibrated zero', () => {
+  const app = createApp();
+  app.sample(-9.81, 0, 9.81);
+  app.render();
+  app.click('calibrateBtn');
+  app.render();
+  app.click('resetBtn');
+  app.click('holdBtn');
+  app.render();
+  assert.equal(app.element('basisValue').getAttribute('data-i18n'), 'basisAbsolute');
+  assert.equal(app.element('rollValue').textContent, '45.0°');
+  assert.equal(app.element('levelIndicator').querySelector('span').getAttribute('data-i18n'), 'notLevel');
+  assert.equal(app.status(), 'statusHeld');
+});
+
+test('resuming held reading immediately after showing cannot expose stale angles', () => {
+  const app = createApp();
+  app.sample(-9.81, 0, 9.81);
+  app.render();
+  app.click('holdBtn');
+  app.hide();
+  app.show();
+  app.click('holdBtn');
+  app.render();
+  assertBlank(app);
+  assertControlsDisabled(app);
+  app.sample(0, 0, 9.81);
+  app.render();
+  assert.equal(app.element('rollValue').textContent, '0.0°');
+  assert.equal(app.status(), 'statusActive');
+});

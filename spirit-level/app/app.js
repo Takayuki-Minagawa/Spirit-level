@@ -9,6 +9,7 @@ const App = (function() {
   let stopSensor = null;
   let animationFrameId = null;
   let sensorTimer = null;
+  let sensorStalled = false;
   let hasFreshMeasurement = false;
   let feedbackContext = null;
   let isRunning = false;
@@ -251,6 +252,7 @@ const App = (function() {
   function resumeAll() {
     if (!hasValidProfile || document.hidden || isRunning) return;
     isRunning = true;
+    sensorStalled = false;
     startSensor();
     armSensorTimeout();
     setStatus(measurementState.isHolding() ? 'statusHeldStale' : 'statusWaiting', 'waiting');
@@ -272,12 +274,7 @@ const App = (function() {
       cancelAnimationFrame(animationFrameId);
       animationFrameId = null;
     }
-    Level.resetMeasurements();
-    levelState.reset();
-    if (!measurementState.isHolding()) {
-      measurementState.reset();
-      clearMeasurementDisplay();
-    }
+    clearLiveMeasurement();
     setStatus(measurementState.isHolding() ? 'statusHeldStale' : 'statusWaiting', 'waiting');
     updateControls();
   }
@@ -290,17 +287,23 @@ const App = (function() {
   function onSensorTimeout() {
     sensorTimer = null;
     if (!isRunning) return;
+    sensorStalled = true;
     hasFreshMeasurement = false;
     wakeLock.setActive(false);
+    closeFeedback();
+    clearLiveMeasurement();
+    setStatus(measurementState.isHolding() ? 'statusHeldStale' : 'statusStale', 'error');
+    showRecovery('sensorStale');
+    updateControls();
+  }
+
+  function clearLiveMeasurement() {
     Level.resetMeasurements();
     levelState.reset();
     if (!measurementState.isHolding()) {
       measurementState.reset();
       clearMeasurementDisplay();
     }
-    setStatus(measurementState.isHolding() ? 'statusHeldStale' : 'statusStale', 'error');
-    showRecovery('sensorStale');
-    updateControls();
   }
 
   function scheduleDisplayUpdate() {
@@ -315,6 +318,7 @@ const App = (function() {
     if (!angles) return;
 
     hasFreshMeasurement = true;
+    sensorStalled = false;
     armSensorTimeout();
     wakeLock.setActive(true);
     document.getElementById('sensorRecovery').hidden = true;
@@ -416,8 +420,8 @@ const App = (function() {
 
   function onCalibrate() {
     if (!hasValidProfile || !hasFreshMeasurement || measurementState.isHolding() || !Level.calibrate()) return;
-    replaceLiveAngles(Level.getCurrentAngles());
     levelState.reset();
+    replaceLiveAngles(Level.getCurrentAngles());
     updateBasis();
     updateControls();
     showToast(i18n[currentLang].calibrateSuccess);
@@ -426,8 +430,8 @@ const App = (function() {
   function onResetLevel() {
     if (!hasValidProfile || !hasFreshMeasurement || measurementState.isHolding()) return;
     Level.resetCalibration();
-    replaceLiveAngles(Level.getCurrentAngles());
     levelState.reset();
+    replaceLiveAngles(Level.getCurrentAngles());
     updateBasis();
     updateControls();
     showToast(i18n[currentLang].resetSuccess);
@@ -437,7 +441,11 @@ const App = (function() {
     const live = measurementState.getLiveMeasurement();
     if (!angles || !live) return;
     measurementState.receive({ ...angles, timestamp: live.timestamp });
-    scheduleDisplayUpdate();
+    // Reference changes must be painted together with the basis label. Otherwise
+    // HOLD could capture an old-basis reading while this update waits for a frame.
+    if (animationFrameId !== null) cancelAnimationFrame(animationFrameId);
+    animationFrameId = null;
+    updateDisplay();
   }
 
   function onToggleHold() {
@@ -450,7 +458,7 @@ const App = (function() {
       measurementState.reset();
       clearMeasurementDisplay();
       updateControls();
-      setStatus('statusStale', 'error');
+      setStatus(sensorStalled ? 'statusStale' : 'statusWaiting', sensorStalled ? 'error' : 'waiting');
       return;
     }
     updateHoldButton();
