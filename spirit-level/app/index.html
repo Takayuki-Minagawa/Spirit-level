@@ -65,6 +65,14 @@
       </button>
     </div>
 
+    <div class="wake-lock-setting">
+      <label class="wake-lock-label" for="wakeLockToggle">
+        <input id="wakeLockToggle" type="checkbox" aria-describedby="wakeLockStatus">
+        <span data-i18n="wakeLockLabel">画面の消灯を防ぐ</span>
+      </label>
+      <p id="wakeLockStatus" class="setting-status" role="status" aria-live="polite" data-i18n="wakeLockOff">計測中に画面を点灯できます</p>
+    </div>
+
     <div class="settings" aria-label="設定" data-i18n-aria="settingsLabel">
       <button class="btn-icon" id="helpBtn" type="button" aria-label="ヘルプ" data-i18n-aria="helpLabel" title="ヘルプ">
         <span aria-hidden="true">❓</span>
@@ -84,6 +92,13 @@
           <button class="modal-close" id="helpClose" type="button" aria-label="ヘルプを閉じる" data-i18n-aria="closeHelpLabel">&times;</button>
         </div>
         <div class="modal-body">
+          <div class="manual-item">
+            <div class="manual-icon" aria-hidden="true">💡</div>
+            <div>
+              <div class="manual-heading" data-i18n="helpWakeLockTitle">画面の消灯を防ぐ</div>
+              <div class="manual-desc" data-i18n="helpWakeLockDesc">計測中・HOLD中の画面を点灯します。別画面への移動やセンサー停止時に解除され、復帰すると再取得します。省電力設定などにより使えない場合があります。</div>
+            </div>
+          </div>
           <div class="manual-item">
             <div class="manual-icon" aria-hidden="true">🟢</div>
             <div>
@@ -141,6 +156,7 @@
   <script src="sensor.js"></script>
   <script src="level.js"></script>
   <script src="measurement-state.js"></script>
+  <script src="wake-lock.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

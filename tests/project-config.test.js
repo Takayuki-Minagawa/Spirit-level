@@ -12,6 +12,9 @@ test('GitHub Pages deployment is gated by the same local checks', () => {
   assert.match(workflow, /run: npm run check/);
   assert.match(workflow, /\n  deploy:\n    needs: test\n/);
   assert.match(workflow, /if: github\.event_name != 'pull_request'/);
+  const runners = [...workflow.matchAll(/runs-on:\s*([^\n]+)/g)].map((match) => match[1]);
+  assert.ok(runners.length > 0);
+  assert.ok(runners.every((runner) => runner === 'ubuntu-latest'), 'CI and deployment must use Linux only');
 });
 
 test('README documents the implemented behavior and valid local URL', () => {

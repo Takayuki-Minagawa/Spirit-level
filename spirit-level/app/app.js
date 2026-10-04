@@ -4,8 +4,14 @@
 const App = (function() {
   const measurementState = MeasurementState.create();
   const levelState = Level.createLevelState();
+  const wakeLock = ScreenWakeLock.create({ onChange: updateWakeLock });
+  const SENSOR_TIMEOUT_MS = 3000;
   let stopSensor = null;
   let animationFrameId = null;
+  let sensorTimer = null;
+  let sensorStalled = false;
+  let hasFreshMeasurement = false;
+  let feedbackContext = null;
   let isRunning = false;
   let hasValidProfile = false;
   let previousFocus = null;
@@ -26,6 +32,19 @@ const App = (function() {
       statusActive: '計測中',
       statusHeld: '表示を固定中',
       statusUnavailable: 'センサーを利用できません',
+      statusStale: 'センサーの更新が止まっています',
+      statusHeldStale: '表示を固定中・センサー更新待ち',
+      sensorStale: '3秒以上センサー値を受信していません。更新時に自動で復帰します。復帰しない場合は再診断してください。',
+      wakeLockLabel: '画面の消灯を防ぐ',
+      wakeLockOff: '計測中に画面を点灯できます',
+      wakeLockWaiting: '計測の再開時に画面を点灯します',
+      wakeLockPending: '画面の点灯を設定中',
+      wakeLockActive: '画面の点灯を維持しています',
+      wakeLockReleased: '点灯の維持が解除されました。再試行は設定を入れ直してください',
+      wakeLockUnavailable: '点灯を維持できません。再試行は設定を入れ直してください',
+      wakeLockUnsupported: 'このブラウザでは画面の点灯維持に対応していません',
+      helpWakeLockTitle: '画面の消灯を防ぐ',
+      helpWakeLockDesc: '計測中・HOLD中の画面を点灯します。別画面への移動やセンサー停止時に解除され、復帰すると再取得します。省電力設定などにより使えない場合があります。',
       sensorUnavailable: '有効なセンサー診断情報がありません。',
       backToCheck: 'センサーチェックへ戻る',
       calibrateSuccess: '現在の傾きを基準に設定しました',
@@ -73,6 +92,19 @@ const App = (function() {
       statusActive: 'Measuring',
       statusHeld: 'Display held',
       statusUnavailable: 'Sensor unavailable',
+      statusStale: 'Sensor updates stopped',
+      statusHeldStale: 'Display held · waiting for sensor',
+      sensorStale: 'No sensor reading for at least 3 seconds. Measurement resumes automatically when data returns. Run the sensor check again if needed.',
+      wakeLockLabel: 'Keep screen awake',
+      wakeLockOff: 'Keep the screen on while measuring',
+      wakeLockWaiting: 'Screen will stay on when measurement resumes',
+      wakeLockPending: 'Requesting screen wake lock',
+      wakeLockActive: 'Keeping the screen awake',
+      wakeLockReleased: 'Screen wake lock released. Toggle the setting to retry',
+      wakeLockUnavailable: 'Cannot keep the screen awake. Toggle the setting to retry',
+      wakeLockUnsupported: 'Keeping the screen awake is not supported by this browser',
+      helpWakeLockTitle: 'Keep screen awake',
+      helpWakeLockDesc: 'Keeps the screen on during measurement and HOLD. Releases when you leave or sensor updates stop, then reacquires on return. Power saving settings may prevent it.',
       sensorUnavailable: 'No valid sensor diagnostic profile was found.',
       backToCheck: 'Return to sensor check',
       calibrateSuccess: 'Current tilt set as the reference',
@@ -137,6 +169,7 @@ const App = (function() {
     setStatus('statusWaiting', 'waiting');
     updateBasis();
     updateControls();
+    updateWakeLock();
 
     validateProfileAndResume();
   }
@@ -149,6 +182,9 @@ const App = (function() {
     document.getElementById('langToggle').addEventListener('click', toggleLanguage);
     document.getElementById('helpBtn').addEventListener('click', openHelp);
     document.getElementById('helpClose').addEventListener('click', closeHelp);
+    document.getElementById('wakeLockToggle').addEventListener('change', (event) => {
+      wakeLock.setEnabled(event.target.checked);
+    });
     document.getElementById('helpModal').addEventListener('click', (event) => {
       if (event.target === event.currentTarget) closeHelp();
     });
@@ -165,6 +201,11 @@ const App = (function() {
     window.addEventListener('pageshow', (event) => {
       if (event.persisted) validateProfileAndResume();
     });
+    window.addEventListener('resize', redrawMeasurement);
+    window.addEventListener('orientationchange', redrawMeasurement);
+    if (window.screen && window.screen.orientation) {
+      window.screen.orientation.addEventListener('change', redrawMeasurement);
+    }
   }
 
   function validateProfileAndResume() {
@@ -186,7 +227,12 @@ const App = (function() {
     measurementState.reset();
     Level.reset();
     levelState.reset();
+    clearMeasurementDisplay();
+    updateBasis();
+    showSensorUnavailable();
+  }
 
+  function clearMeasurementDisplay() {
     document.getElementById('rollValue').textContent = '--.-°';
     document.getElementById('pitchValue').textContent = '--.-°';
     document.getElementById('bubble').style.transform = 'translate(-50%, -50%)';
@@ -195,8 +241,6 @@ const App = (function() {
     indicator.className = 'level-indicator waiting';
     label.setAttribute('data-i18n', 'waitingForMeasurement');
     label.textContent = i18n[currentLang].waitingForMeasurement;
-    updateBasis();
-    showSensorUnavailable();
   }
 
   function startSensor() {
@@ -206,14 +250,22 @@ const App = (function() {
   }
 
   function resumeAll() {
-    if (!hasValidProfile || document.hidden) return;
+    if (!hasValidProfile || document.hidden || isRunning) return;
     isRunning = true;
+    sensorStalled = false;
     startSensor();
-    if (!measurementState.hasMeasurement()) setStatus('statusWaiting', 'waiting');
+    armSensorTimeout();
+    setStatus(measurementState.isHolding() ? 'statusHeldStale' : 'statusWaiting', 'waiting');
+    updateControls();
   }
 
   function stopAll() {
     isRunning = false;
+    clearTimeout(sensorTimer);
+    sensorTimer = null;
+    hasFreshMeasurement = false;
+    wakeLock.setActive(false);
+    closeFeedback();
     if (stopSensor) {
       stopSensor();
       stopSensor = null;
@@ -221,6 +273,36 @@ const App = (function() {
     if (animationFrameId !== null) {
       cancelAnimationFrame(animationFrameId);
       animationFrameId = null;
+    }
+    clearLiveMeasurement();
+    setStatus(measurementState.isHolding() ? 'statusHeldStale' : 'statusWaiting', 'waiting');
+    updateControls();
+  }
+
+  function armSensorTimeout() {
+    clearTimeout(sensorTimer);
+    sensorTimer = setTimeout(onSensorTimeout, SENSOR_TIMEOUT_MS);
+  }
+
+  function onSensorTimeout() {
+    sensorTimer = null;
+    if (!isRunning) return;
+    sensorStalled = true;
+    hasFreshMeasurement = false;
+    wakeLock.setActive(false);
+    closeFeedback();
+    clearLiveMeasurement();
+    setStatus(measurementState.isHolding() ? 'statusHeldStale' : 'statusStale', 'error');
+    showRecovery('sensorStale');
+    updateControls();
+  }
+
+  function clearLiveMeasurement() {
+    Level.resetMeasurements();
+    levelState.reset();
+    if (!measurementState.isHolding()) {
+      measurementState.reset();
+      clearMeasurementDisplay();
     }
   }
 
@@ -231,12 +313,17 @@ const App = (function() {
   }
 
   function onSensorData({ gx, gy, gz, timestamp }) {
-    if (!hasValidProfile) return;
+    if (!hasValidProfile || !isRunning) return;
     const angles = Level.calculateAngles(gx, gy, gz);
     if (!angles) return;
 
+    hasFreshMeasurement = true;
+    sensorStalled = false;
+    armSensorTimeout();
+    wakeLock.setActive(true);
+    document.getElementById('sensorRecovery').hidden = true;
     const displayChanged = measurementState.receive({ ...angles, timestamp });
-    if (!measurementState.isHolding()) setStatus('statusActive', 'active');
+    setStatus(measurementState.isHolding() ? 'statusHeld' : 'statusActive', measurementState.isHolding() ? 'held' : 'active');
     updateControls();
     if (displayChanged) scheduleDisplayUpdate();
   }
@@ -247,15 +334,27 @@ const App = (function() {
 
     const measurement = measurementState.consumeDisplayUpdate();
     if (!measurement) return;
+    renderMeasurement(measurement);
+
     const { roll, pitch } = measurement;
-
-    document.getElementById('rollValue').textContent = `${roll.toFixed(1)}°`;
-    document.getElementById('pitchValue').textContent = `${pitch.toFixed(1)}°`;
-
     const state = levelState.update(roll, pitch);
     updateLevelIndicator(state.isLevel);
     if (state.becameLevel) triggerFeedback();
+    updateControls();
+  }
+
+  function renderMeasurement(measurement) {
+    const orientation = window.screen && window.screen.orientation;
+    const angle = orientation && Number.isFinite(orientation.angle) ? orientation.angle : window.orientation;
+    const { roll, pitch } = Level.projectAnglesToScreen(measurement.roll, measurement.pitch, angle);
+    document.getElementById('rollValue').textContent = `${roll.toFixed(1)}°`;
+    document.getElementById('pitchValue').textContent = `${pitch.toFixed(1)}°`;
     updateBubblePosition(roll, pitch);
+  }
+
+  function redrawMeasurement() {
+    const measurement = measurementState.getDisplayMeasurement();
+    if (measurement) renderMeasurement(measurement);
   }
 
   function updateLevelIndicator(isLevel) {
@@ -277,12 +376,22 @@ const App = (function() {
   }
 
   function triggerFeedback() {
-    if (navigator.vibrate) navigator.vibrate(100);
+    try {
+      if (navigator.vibrate) navigator.vibrate(100);
+    } catch (error) {
+      // Optional feedback must not interrupt measurement.
+    }
 
+    closeFeedback();
     try {
       const AudioContextConstructor = window.AudioContext || window.webkitAudioContext;
       if (!AudioContextConstructor) return;
       const audioContext = new AudioContextConstructor();
+      feedbackContext = audioContext;
+      if (audioContext.state === 'suspended') {
+        closeFeedback();
+        return;
+      }
       const oscillator = audioContext.createOscillator();
       const gainNode = audioContext.createGain();
       oscillator.type = 'sine';
@@ -290,27 +399,39 @@ const App = (function() {
       gainNode.gain.value = 0.3;
       oscillator.connect(gainNode);
       gainNode.connect(audioContext.destination);
+      oscillator.onended = () => closeFeedback(audioContext);
       oscillator.start();
       oscillator.stop(audioContext.currentTime + 0.1);
     } catch (error) {
+      closeFeedback();
       console.warn('Audio feedback not available');
     }
   }
 
+  function closeFeedback(context = feedbackContext) {
+    if (!context) return;
+    if (context === feedbackContext) feedbackContext = null;
+    try {
+      if (context.state !== 'closed') Promise.resolve(context.close()).catch(() => {});
+    } catch (error) {
+      // Closing optional audio must not interrupt lifecycle cleanup.
+    }
+  }
+
   function onCalibrate() {
-    if (!hasValidProfile || measurementState.isHolding() || !Level.calibrate()) return;
-    replaceLiveAngles(Level.getCurrentAngles());
+    if (!hasValidProfile || !hasFreshMeasurement || measurementState.isHolding() || !Level.calibrate()) return;
     levelState.reset();
+    replaceLiveAngles(Level.getCurrentAngles());
     updateBasis();
     updateControls();
     showToast(i18n[currentLang].calibrateSuccess);
   }
 
   function onResetLevel() {
-    if (!hasValidProfile || measurementState.isHolding() || !measurementState.hasMeasurement()) return;
+    if (!hasValidProfile || !hasFreshMeasurement || measurementState.isHolding()) return;
     Level.resetCalibration();
-    replaceLiveAngles(Level.getCurrentAngles());
     levelState.reset();
+    replaceLiveAngles(Level.getCurrentAngles());
     updateBasis();
     updateControls();
     showToast(i18n[currentLang].resetSuccess);
@@ -320,7 +441,11 @@ const App = (function() {
     const live = measurementState.getLiveMeasurement();
     if (!angles || !live) return;
     measurementState.receive({ ...angles, timestamp: live.timestamp });
-    scheduleDisplayUpdate();
+    // Reference changes must be painted together with the basis label. Otherwise
+    // HOLD could capture an old-basis reading while this update waits for a frame.
+    if (animationFrameId !== null) cancelAnimationFrame(animationFrameId);
+    animationFrameId = null;
+    updateDisplay();
   }
 
   function onToggleHold() {
@@ -329,6 +454,13 @@ const App = (function() {
     if (!result.changed) return;
 
     levelState.reset();
+    if (!result.holding && !hasFreshMeasurement) {
+      measurementState.reset();
+      clearMeasurementDisplay();
+      updateControls();
+      setStatus(sensorStalled ? 'statusStale' : 'statusWaiting', sensorStalled ? 'error' : 'waiting');
+      return;
+    }
     updateHoldButton();
     updateControls();
     setStatus(result.holding ? 'statusHeld' : 'statusActive', result.holding ? 'held' : 'active');
@@ -356,9 +488,9 @@ const App = (function() {
   }
 
   function updateControls() {
-    const hasMeasurement = hasValidProfile && measurementState.hasMeasurement();
+    const hasMeasurement = hasValidProfile && hasFreshMeasurement && measurementState.hasDisplayMeasurement();
     const holding = measurementState.isHolding();
-    document.getElementById('holdBtn').disabled = !hasMeasurement;
+    document.getElementById('holdBtn').disabled = !hasMeasurement && !holding;
     document.getElementById('calibrateBtn').disabled = !hasMeasurement || holding;
     document.getElementById('resetBtn').disabled = !hasMeasurement || holding || !Level.isCalibrated();
     updateHoldButton();
@@ -377,8 +509,32 @@ const App = (function() {
 
   function showSensorUnavailable() {
     setStatus('statusUnavailable', 'error');
-    document.getElementById('sensorRecovery').hidden = false;
+    showRecovery('sensorUnavailable');
     updateControls();
+  }
+
+  function showRecovery(key) {
+    const recovery = document.getElementById('sensorRecovery');
+    const message = recovery.querySelector('p');
+    message.setAttribute('data-i18n', key);
+    message.textContent = i18n[currentLang][key];
+    recovery.hidden = false;
+  }
+
+  function updateWakeLock() {
+    const state = wakeLock.getState();
+    const checkbox = document.getElementById('wakeLockToggle');
+    checkbox.disabled = !state.supported;
+    checkbox.checked = state.enabled;
+    const keys = {
+      off: state.enabled ? 'wakeLockWaiting' : 'wakeLockOff',
+      pending: 'wakeLockPending', active: 'wakeLockActive', released: 'wakeLockReleased',
+      unavailable: 'wakeLockUnavailable', unsupported: 'wakeLockUnsupported'
+    };
+    const status = document.getElementById('wakeLockStatus');
+    const key = keys[state.status];
+    status.setAttribute('data-i18n', key);
+    status.textContent = i18n[currentLang][key];
   }
 
   function applyLanguage() {
