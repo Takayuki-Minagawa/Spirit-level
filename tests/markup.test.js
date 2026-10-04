@@ -22,6 +22,9 @@ test('measurement page exposes hold, recovery, and accessible dialog controls', 
   assert.match(html, /role="dialog" aria-modal="true" aria-labelledby="helpDialogTitle"/);
   assert.match(html, /id="levelIndicator"[^>]+aria-live="polite"/);
   assert.match(html, /src="measurement-state\.js"/);
+  assert.match(html, /src="wake-lock\.js"/);
+  assert.match(html, /for="wakeLockToggle"/);
+  assert.match(html, /id="wakeLockToggle"[^>]+aria-describedby="wakeLockStatus"/);
   assert.doesNotMatch(html, /user-scalable\s*=\s*no/);
 });
 

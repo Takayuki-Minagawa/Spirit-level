@@ -5,6 +5,6 @@
   "description": "A dependency-free smartphone spirit level web app",
   "scripts": {
     "test": "node --test",
-    "check": "node --check spirit-level/diagnostics.js && node --check spirit-level/app/level.js && node --check spirit-level/app/sensor.js && node --check spirit-level/app/measurement-state.js && node --check spirit-level/app/app.js && node --test"
+    "check": "node --check spirit-level/diagnostics.js && node --check spirit-level/app/level.js && node --check spirit-level/app/sensor.js && node --check spirit-level/app/measurement-state.js && node --check spirit-level/app/wake-lock.js && node --check spirit-level/app/app.js && node --test"
   }
 }

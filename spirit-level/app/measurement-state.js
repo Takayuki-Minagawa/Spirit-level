@@ -12,35 +12,34 @@ const MeasurementState = (function() {
   function create() {
     let liveMeasurement = null;
     let displayMeasurement = null;
+    let pendingMeasurement = null;
     let holding = false;
-    let dirty = false;
 
     function receive(measurement) {
       if (!isValidMeasurement(measurement)) return false;
       liveMeasurement = { ...measurement };
       if (holding) return false;
 
-      displayMeasurement = { ...measurement };
-      dirty = true;
+      pendingMeasurement = { ...measurement };
       return true;
     }
 
     function consumeDisplayUpdate() {
-      if (!dirty || displayMeasurement === null) return null;
-      dirty = false;
+      if (pendingMeasurement === null) return null;
+      displayMeasurement = pendingMeasurement;
+      pendingMeasurement = null;
       return { ...displayMeasurement };
     }
 
     function toggleHold() {
-      if (liveMeasurement === null) {
+      if (displayMeasurement === null) {
         return { changed: false, holding };
       }
 
       holding = !holding;
-      if (!holding) {
-        displayMeasurement = { ...liveMeasurement };
-        dirty = true;
-      }
+      // Freeze the value the user has actually seen, even when a newer sensor
+      // sample is waiting for the next animation frame.
+      pendingMeasurement = holding ? null : { ...liveMeasurement };
       return { changed: true, holding };
     }
 
@@ -48,8 +47,16 @@ const MeasurementState = (function() {
       return liveMeasurement ? { ...liveMeasurement } : null;
     }
 
+    function getDisplayMeasurement() {
+      return displayMeasurement ? { ...displayMeasurement } : null;
+    }
+
     function hasMeasurement() {
       return liveMeasurement !== null;
+    }
+
+    function hasDisplayMeasurement() {
+      return displayMeasurement !== null;
     }
 
     function isHolding() {
@@ -59,8 +66,8 @@ const MeasurementState = (function() {
     function reset() {
       liveMeasurement = null;
       displayMeasurement = null;
+      pendingMeasurement = null;
       holding = false;
-      dirty = false;
     }
 
     return {
@@ -68,7 +75,9 @@ const MeasurementState = (function() {
       consumeDisplayUpdate,
       toggleHold,
       getLiveMeasurement,
+      getDisplayMeasurement,
       hasMeasurement,
+      hasDisplayMeasurement,
       isHolding,
       reset
     };

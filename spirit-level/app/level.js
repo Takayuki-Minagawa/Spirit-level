@@ -25,6 +25,27 @@ const Level = (function() {
     return alpha * current + (1 - alpha) * previous;
   }
 
+  function normalizeScreenAngle(angle = 0) {
+    if (!Number.isFinite(angle)) return 0;
+    return ((Math.round(angle / 90) * 90) % 360 + 360) % 360;
+  }
+
+  function projectAnglesToScreen(roll, pitch, screenAngle = 0) {
+    if (![roll, pitch].every(Number.isFinite)) return null;
+
+    // Sensor axes stay attached to the device when the viewport rotates.
+    // Transform only the display axes, keeping filtering and relative zero in
+    // the device frame so rotating the screen cannot move the calibrated zero.
+    // Positive screen angles mean counterclockwise device rotation: at 90°,
+    // device +X points up on screen and device +Y points left on screen.
+    switch (normalizeScreenAngle(screenAngle)) {
+      case 90: return { roll: pitch, pitch: -roll };
+      case 180: return { roll: -roll, pitch: -pitch };
+      case 270: return { roll: -pitch, pitch: roll };
+      default: return { roll, pitch };
+    }
+  }
+
   function createTracker({ alpha = DEFAULT_ALPHA } = {}) {
     if (!Number.isFinite(alpha) || alpha <= 0 || alpha > 1) {
       throw new RangeError('alpha must be greater than 0 and at most 1');
@@ -91,12 +112,15 @@ const Level = (function() {
       return calibrationActive;
     }
 
-    function reset() {
+    function resetMeasurements() {
       filteredGravity = null;
       latestGravity = null;
       latestRawAngles = null;
-      calibrationOffset = { roll: 0, pitch: 0 };
-      calibrationActive = false;
+    }
+
+    function reset() {
+      resetMeasurements();
+      resetCalibration();
     }
 
     return {
@@ -105,6 +129,7 @@ const Level = (function() {
       calibrate,
       resetCalibration,
       isCalibrated,
+      resetMeasurements,
       reset
     };
   }
@@ -171,8 +196,11 @@ const Level = (function() {
     calibrate: tracker.calibrate,
     resetCalibration: tracker.resetCalibration,
     isCalibrated: tracker.isCalibrated,
+    resetMeasurements: tracker.resetMeasurements,
     reset: tracker.reset,
     anglesFromGravity,
+    normalizeScreenAngle,
+    projectAnglesToScreen,
     createTracker,
     isFiniteGravity,
     isLevel,

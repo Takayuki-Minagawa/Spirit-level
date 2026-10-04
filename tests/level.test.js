@@ -27,6 +27,39 @@ test('invalid and zero gravity vectors are rejected', () => {
   assert.equal(Level.anglesFromGravity(0, Infinity, 9.81), null);
 });
 
+test('screen projection follows portrait, landscape, and upside-down axes', () => {
+  assert.deepEqual(Level.projectAnglesToScreen(10, 20, 0), { roll: 10, pitch: 20 });
+  assert.deepEqual(Level.projectAnglesToScreen(10, 20, 90), { roll: 20, pitch: -10 });
+  assert.deepEqual(Level.projectAnglesToScreen(10, 20, 180), { roll: -10, pitch: -20 });
+  assert.deepEqual(Level.projectAnglesToScreen(10, 20, 270), { roll: -20, pitch: 10 });
+  assert.deepEqual(Level.projectAnglesToScreen(10, 20, -90), { roll: -20, pitch: 10 });
+  assert.deepEqual(Level.projectAnglesToScreen(10, 20, 450), { roll: 20, pitch: -10 });
+  assert.deepEqual(Level.projectAnglesToScreen(10, 20), { roll: 10, pitch: 20 });
+  assert.equal(Level.projectAnglesToScreen(NaN, 20, 90), null);
+  assert.equal(Level.projectAnglesToScreen(10, Infinity, 90), null);
+});
+
+test('landscape tilt axes match the physical screen frame', () => {
+  // At screen.angle=90°, device +X points up and device +Y points left.
+  // A device +X acceleration must therefore become positive screen pitch,
+  // while device +Y acceleration must become positive screen roll.
+  const deviceX = Level.anglesFromGravity(3, 0, 9);
+  const deviceY = Level.anglesFromGravity(0, 3, 9);
+  const projectedX = Level.projectAnglesToScreen(deviceX.roll, deviceX.pitch, 90);
+  const projectedY = Level.projectAnglesToScreen(deviceY.roll, deviceY.pitch, 90);
+  assert.ok(projectedX.pitch > 0);
+  assert.ok(projectedY.roll > 0);
+});
+
+test('screen angles normalize to the nearest cardinal orientation', () => {
+  assert.equal(Level.normalizeScreenAngle(-90), 270);
+  assert.equal(Level.normalizeScreenAngle(360), 0);
+  assert.equal(Level.normalizeScreenAngle(89.9), 90);
+  for (const invalid of [undefined, null, NaN, Infinity, '90']) {
+    assert.equal(Level.normalizeScreenAngle(invalid), 0);
+  }
+});
+
 test('tracker supports repeated calibration and reset', () => {
   const tracker = Level.createTracker({ alpha: 1 });
   const thirty = degreesToGravity(30);
@@ -83,6 +116,29 @@ test('tracker only advances its filter when update receives a sensor sample', ()
 
   assert.deepEqual(repeatedRead, first);
   assert.notDeepEqual(tracker.update(thirty.gx, thirty.gy, thirty.gz), first);
+});
+
+test('measurement reset clears stale filter history while keeping relative zero', () => {
+  const tracker = Level.createTracker();
+  const thirty = degreesToGravity(30);
+  const fortyFive = degreesToGravity(45);
+  tracker.update(thirty.gx, thirty.gy, thirty.gz);
+  tracker.calibrate();
+
+  tracker.resetMeasurements();
+  assert.equal(tracker.getCurrentAngles(), null);
+  assert.equal(tracker.calibrate(), false);
+  assert.equal(tracker.isCalibrated(), true);
+  const resumed = tracker.update(fortyFive.gx, fortyFive.gy, fortyFive.gz);
+  assert.ok(Math.abs(resumed.roll - 15) < 1e-10);
+
+  // Screen rotations affect only presentation, not the tracker or calibration.
+  const landscape = Level.projectAnglesToScreen(resumed.roll, resumed.pitch, 90);
+  assert.ok(Math.abs(landscape.pitch + 15) < 1e-10);
+  assert.deepEqual(tracker.getCurrentAngles(), resumed);
+  tracker.reset();
+  assert.equal(tracker.getCurrentAngles(), null);
+  assert.equal(tracker.isCalibrated(), false);
 });
 
 test('level threshold is inclusive and hysteresis prevents edge chatter', () => {
